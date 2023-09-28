@@ -1,6 +1,8 @@
-import { Body, Controller, Get, HttpStatus, Post, Req, Res } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, HttpStatus, Post, Req, Res } from "@nestjs/common";
 import { userService } from "./user.service";
+import { EmailService } from "./email.service";
 import { config } from "src/config/config";
+import { OtpService } from "./otp.service";
 var bcrypt = require('bcryptjs');
 var jwt = require("jsonwebtoken")
 
@@ -8,7 +10,9 @@ var jwt = require("jsonwebtoken")
 @Controller('/user')
 export class userController {
     constructor(
-        private readonly userService : userService
+        private readonly userService : userService,
+        private readonly EmailService : EmailService,
+        private readonly OtpService : OtpService
     ){}
 
     @Post('/signup')
@@ -67,4 +71,43 @@ export class userController {
             res.status(HttpStatus.OK).json({success:false,message:"wrong password"})
         }
     }
+
+
+    @Post('/requestPasswordReset')
+    async requestPasswordReset(@Body() body: { email: string }){
+    const { email } = body;
+    const user:any = await this.userService.findUser(email);
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const otp = this.OtpService.generateOtp();
+    user.resetPasswordOtp = otp;
+    await this.userService.update(user.id, { resetPasswordOtp: otp });
+
+
+    const emailSubject = 'Password Reset OTP';
+    const emailText = `Your OTP for password reset is: ${otp}`;
+    await this.EmailService.sendEmail(email, emailSubject, emailText);
+  }
+
+  @Post('/verifyOtp')
+  async verifyOtp (
+    @Body() body :{email:string,otp:string,newPassword:string},
+    @Res() res
+  ){
+
+    let {email,otp,newPassword} = body;
+
+    let user:any = this.userService.findUser(email);
+
+    if(otp != user?.resetPasswordOtp){
+        throw new BadRequestException('Incorrect OTP');
+    }
+
+    let result = this.userService.update(user._id,{password : newPassword});
+
+    res.status(HttpStatus.OK).json({success:true,message :"Password changed successfully!"})
+  }
 }
