@@ -23,4 +23,8 @@ export class userService {
         let res = await this.userModel.findOne({email})
         return res
     }
+
+    async update (id,body){
+        let res = await this.userModel.findByIdAndUpdate(id,{...body})
+    }
 }
