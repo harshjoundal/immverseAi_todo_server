@@ -30,7 +30,7 @@ export class todoService {
 
     async updateTodo (body){
         try {
-            let id = body?.id;
+            let id = body?._id;
             let result = await this.todoModel.findByIdAndUpdate(id,{...body},{new:true})
             return result;
         } catch (error) {
@@ -38,10 +38,15 @@ export class todoService {
         }
     }
 
-    async getAll (id){
+    async getAll ({id,page,items}){
         try {
-            let result = this.todoModel.find({userId : id})
-            return result
+            let skipNumber = (page-1) * items
+            let result = await this.todoModel.find({userId : id}).skip(skipNumber).limit(items)
+            let count = await this.todoModel.find({userId : id}).count()
+            return {
+                result,
+                count
+            }
         } catch (error) {
             return error
         }

@@ -1,9 +1,11 @@
-import { Body, Controller, Get, HttpStatus, Param, Post, Req, Res,UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, HttpStatus, Param, Post, Query, Req, Res,UseGuards,UnauthorizedException} from "@nestjs/common";
 import { todoService } from "./todo.service";
 import { AuthGuard } from "../middlewares/AuthMiddleware";
+import { ApiTags, ApiResponse,ApiOperation } from '@nestjs/swagger';
 
 
 @Controller('/todos')
+@ApiTags('Todo Controller')
 export class todoController {
     constructor(
         private readonly todoService : todoService
@@ -22,12 +24,13 @@ export class todoController {
     }
 
     @UseGuards(AuthGuard)
-    @Post('/deleteTodo')
+    @Post('/deleteTodo/:id')
     async deleteTodo (
         @Body() Body,
-        @Res() res
+        @Res() res,
+        @Param() Param
     ){
-        const {id} = Body;
+        const {id} = Param;
         let result = await this.todoService.deleteTodo(id);
         res.status(HttpStatus.OK).json({success:true,data:result})
     }
@@ -36,8 +39,15 @@ export class todoController {
     @Post('/update')
     async updateTodo (
         @Body() Body,
-        @Res() res
+        @Res() res,
+        @Req() req
     ){
+        let decoded_token = req?.Token_decoaded;
+        console.log(decoded_token,Body);
+        if(decoded_token?.userId != Body?.userId){
+            throw new UnauthorizedException();
+        }
+        
         let result = await this.todoService.updateTodo(Body)
         res.status(HttpStatus.OK).json({
             success : true,
@@ -47,12 +57,16 @@ export class todoController {
 
     @UseGuards(AuthGuard)
     @Get("/getall/:userId")
+     @ApiOperation({ summary: 'Get something' })
+     @ApiResponse({ status: 200, description: 'Successful response' })
     async getall (
         @Res() res,
-        @Param() param
+        @Param() param,
+        @Query () query
     ){
         let {userId} = param
-        let result = await this.todoService.getAll(userId)
+        let {page,items} = query;
+        let result = await this.todoService.getAll({id:userId,page,items})
         res.status(HttpStatus.OK).json(result)
     }
 }
