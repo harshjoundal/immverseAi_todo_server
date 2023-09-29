@@ -13,7 +13,8 @@ export class todoService {
     async addTodo (body){
         try {
             let res = await this.todoModel.create(body);
-            return res
+            let data = await this.todoModel.find({userId:body?.userId})
+            return data
         } catch (error) {
             return error;
         }       
